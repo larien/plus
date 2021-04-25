@@ -1,0 +1,45 @@
+FROM php:7.4-cli AS builder
+
+WORKDIR /var/www
+
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev -y \
+    zip \
+    unzip
+
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
+    php composer-setup.php && \
+    php -r "unlink('composer-setup.php');"
+
+RUN php composer.phar create-project --prefer-dist laravel/laravel laravel
+
+ENTRYPOINT [ "php", "laravel/artisan", "serve" ]
+
+CMD ["--host=0.0.0.0" ]
+
+# docker build -t <nick-do-Docker-Hub>/laravel:latest .
+# docker run -d --rm --name laravel -p 8000:8000
+
+# multistage building
+
+FROM php:7.4-fpm-alpine
+
+WORKDIR /var/www
+
+RUN rm -rf /var/www/html
+
+COPY --from=builder /var/www/laravel .
+
+RUN chown -R -R www-data:www-data /var/www
+
+EXPOSE 9000
+
+CMD ["php-fpm"]
+
+# docker build -t lauren/laravel:prod . -f laravel/Dockerfile.prod
+# docker run -d --rm --name laravel -p 8000:8000
